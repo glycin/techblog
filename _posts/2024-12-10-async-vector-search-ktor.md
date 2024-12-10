@@ -9,18 +9,17 @@ categories: [technical, coding, ktor]
 
 ## Imagine...
 
-Imagine that we are developing a MMORPG (massively multiplayer online role-playing game). Our differentiating feature is that users can craft and store pretty much anything they can come up with! Quite ambitious, but that is how we roll in the software engineering world. Ambition and scope creep is our middle name! 
-One of the first issues we face is the fact that whenever a user crafts, buys or finds something, we want to display an icon for that item. We are developing a game in the end... can't just show text to our players! 
+Imagine that we are developing an MMORPG (massively multiplayer online role-playing game). Our differentiating feature is that users can craft and store pretty much anything they can come up with! Quite ambitious, but that is how we roll in the software engineering world. Ambition and scope creep are our middle names! One of the first issues we face is the fact that whenever a user crafts, buys, or finds something, we want to display an icon for that item. We are developing a game, after all... we can't just show text to our players!
 
-There is no way we are going to create a custom icon for all possible items in your game. Tagging icons is also out of the questions, because that sounds like manual work, and we developers don't like doing things manually! So what is the solution? Well, thanks to AI and machine learning, that would be **embedding models** and **vector search**! 
+There is no way we are going to create a custom icon for all possible items in our game. Tagging icons is also out of the question, because that sounds like manual work, and we developers don't like doing things manually! So what’s the solution? Well, thanks to AI and machine learning, that would be **embedding models** and **vector search**!
 
 ## Vector search
-Vector search is the art of using embedded vectors to search for semantically similar items. It is how LLM's like chatGPT work (among other techniques) and has become quite popular past years. Embedding models transform objects into their vector representation, which is an array of *float* numbers. These models have been trained using machine learning to understand the context and meaning of whatever they are embedding, and have become quite good at what they do. So what does that do for us? Well we can use an embedding model that understands images and text (a so called multi-modal embedding model) and use that to find an icon that is semantically close to whatever the player is searching! Then all we need to do is a vector search using the input text of the player, and return the icon that best fits that text. 
+Vector search is the art of using embedded vectors to search for semantically similar items. It is how LLMs like ChatGPT work (among other techniques) and has become quite popular in recent years. Embedding models transform objects into their vector representations, which are arrays of *float* numbers. These models have been trained using machine learning to understand the context and meaning of whatever they are embedding, and they have become quite good at what they do. So what does that do for us? Well, we can use an embedding model that understands images and text (a so-called multi-modal embedding model) and use that to find an icon that is semantically close to whatever the player is searching for! Then all we need to do is a vector search using the input text of the player and return the icon that best fits that text.
 
-To do this we just need a backend that receives a `searchText` and a vector database that we can leverage for quick and painless vector search. In our case we will use **Kotlin** and **Ktor** for our backend and **Weaviate** as a vector database.
+To do this, we need a backend that receives a `searchText` and a vector database that we can leverage for quick and painless vector searches. In our case, we will use **Kotlin** and **Ktor** for our backend and **Weaviate** as a vector database.
 
 ## Setting up Weaviate
-There are alot of vector databases out there, so why are we choosing [Weaviate](https://weaviate.io/)? Well, most importantly, ease of use. Weaviate is open source, and allows us to easily deploy the database (locally) using *docker*. They even have a handy *docker-compose* [generator](https://weaviate.io/developers/weaviate/installation/docker-compose)! Clicking through it gave us the the following `docker-compose.yml`:
+There are a lot of vector databases out there, so why are we choosing [Weaviate](https://weaviate.io/)? Well, most importantly, ease of use. Weaviate is open-source and allows us to easily deploy the database (locally) using *Docker*. They even have a handy *docker-compose* [generator](https://weaviate.io/developers/weaviate/installation/docker-compose)! Clicking through it gave us the the following `docker-compose.yml`:
 
 ```yaml
 ---
@@ -55,23 +54,22 @@ services:
 ...
 ```
 
-Quite neat right?! We can just run `docker compose up` and we will have an instance running locally in no time! There are some interesting lines here:
+Quite neat right?! We can just run `docker compose up`, and we’ll have an instance running locally in no time! There are some interesting lines here:
 
 ```yaml
     volumes:
     - C:\Projects\ktor-vector-search\weaviate_volume:/var/lib/weaviate
 ```
 
-Here we define a persistent volume for our vector database. That means there wont be any data loss if we happen to delete the docker image, as some of us might have experienced before...
+Here we define a persistent volume for our vector database. That means there won’t be any data loss if we happen to delete the Docker image, as some of us might have experienced before...
 
 ```yaml
   multi2vec-clip:
     image: cr.weaviate.io/semitechnologies/multi2vec-clip:sentence-transformers-clip-ViT-B-32
 ```
+This is an important line. Here we tell Weaviate that we want to use a `clip` model (with a link to where to download the Docker image from). Clip models are multi-modal, which is exactly what we need! Now, every time we push something to Weaviate, it will automatically embed that data using this exact model. That means we don’t have to do any embedding ourselves. Everything will be taken care of by our vector database.
 
-This is an important line. Here we tell Weaviate that we want to use a `clip` (with a link to where to download the image from) model. Clip models are multi-modal, exactly what we need! Now everytime we push something to Weaviate, Weaviate will automatically embed that data using this exact model. That means we dont have to do any embedding ourselves, everything will be taken care of by our vector database.
-
-Now we just need to create our vector space (or schema) for the objects that we will be storing. This is like defining a table in a relational database. We can do this by doing a `POST` request to the Weaviate API:
+Now we just need to create our vector space (or schema) for the objects that we will be storing. This is like defining a table in a relational database. We can do this by making a `POST` request to the Weaviate API:
 
 ```
 curl --request POST \
@@ -115,16 +113,15 @@ curl --request POST \
   ]
 }'
 ```
-
-Here we create a schema with `className` `Icon` (class names always have to start with an uppercase letter), and let Weaviate know to use the `clip` model to vectorize the fields. We also define two fields, `text` and `image`, which unsuprisingly will hold textual and image data. `Text` will be simple strings, while `image` will be base64 encoded images.
+Here we create a schema with the `className` "Icon" (class names always have to start with an uppercase letter) and let Weaviate know to use the `clip` model to vectorize the fields. We also define two fields: `text` and `image`, which, unsurprisingly, will hold textual and image data. `Text` will be simple strings, while `image` will be base64-encoded images.
 
 And that's it! We are ready to ingest and query data from our Weaviate instance. Now let's make some endpoints to do just that!
 
 ## Ktor
-Since we are developing a game here (and not just any game, a MMORPG), we need our search to be *fast* as lightning and as *async* as we can get it! Players might be searching for alot of items at any given time, so *async* will help us get those icons to the client as quickly as possible! That means [Ktor](https://ktor.io/) is probably our best choice. Ktor is heavily leveraging *kotlin coroutines* so that calls to are async by default. That's great! Exactly what we need! And the compact way of declaring our routing is just a nice plus.
+Since we are developing a game here (and not just any game, an MMORPG), we need our search to be *fast* as lightning and as *async* as we can get it! Players might be searching for a lot of items at any given time, so async will help us get those icons to the player as quickly as possible! That means [Ktor](https://ktor.io/) is probably our best choice. Ktor heavily leverages *Kotlin coroutines*, so calls are async by default. That’s great! Exactly what we need! And the compact way of declaring our routing is just a nice plus.
 
 ### Setting up the service
-Setting up our service is quite straightforward. Our configuration isn't that exciting. We set up our `ContentNegotiation` for json, set up some log levels and create our services and inject them in our route. We do this manually, since using a DI framework just for a few classes is really kinda overkill. Don't forget people, less is more. 
+Setting up our service is quite straightforward. Our configuration isn’t that exciting. We set up our `ContentNegotiation` for JSON, configure some log levels, and create our services to inject them into our routes. We do this manually since using a DI framework just for a few classes is really kinda overkill. Don’t forget, people: less is more.
 
 ```kotlin
 fun Application.module() {
@@ -149,10 +146,10 @@ fun Application.module() {
 ```
 {: file='Application.kt'}
 
-The Weaviate repository we create here is using the [**Weaviate** java client](https://weaviate.io/developers/weaviate/client-libraries/java). This allows us to relatively easily interface with the vector database running on our local docker environment. If we didn't want to use the Weaviate java client we either need to do REST calls ourselves or use an abstraction framework like **Langchain4j**. 
+The Weaviate repository we create here is using the [**Weaviate** Java client](https://weaviate.io/developers/weaviate/client-libraries/java). This allows us to relatively easily interface with the vector database running on our local Docker environment. If we didn’t want to use the Weaviate Java client, we would either need to make REST calls ourselves or use an abstraction framework like Langchain4j.
 
-![Icons](/assets/gif/icons.gif){.w-50.left} But what are we doing to ingest? Well thanks to some [humble bundles](https://www.humblebundle.com/), there is a healthy amount of icons that we can use. 1029 to be precise. Now all we need to do is create an endpoint that gets a directory path (or url) and loads all these icons in our vector database:
-
+![Icons](/assets/gif/icons.gif){: .left}
+But what are we using to ingest? Well, thanks to some [humble bundles](https://www.humblebundle.com/), there is a healthy amount of icons that we can use—1029 icons to be precise, stored in a local directory. These specific icons are unfortunately subject to copyright laws and can’t be shared online, but any [icon collection](https://opengameart.org/content/496-pixel-art-icons-for-medievalfantasy-rpg) can do the trick! Now, all we need to do is create an endpoint that gets a directory path (or URL) and loads all these icons into our vector database:
 
 ```kotlin
 post("/ingest/directory") {
@@ -167,12 +164,21 @@ post("/ingest/directory") {
 ```
 {: file='Routing.kt'}
 
-
-With our application setup, we can now focus on searching for icons! First things first, we need to ingest some data in the vector database. We will do that using the 
-
 ```kotlin
-
+fun loadImagesInDb(imageDirectory: String): Boolean {
+    LOG.info { "Loading in images from $imageDirectory" }
+    val directory = File(imageDirectory)
+    val uris = directory
+        .walk()
+        .filter { it.isFile && it.extension == "png" }
+        .map { it.toURI() }
+        .toList()
+    LOG.info { "Finished in images from $imageDirectory" }
+    return weaviateRepository.batchAddImages(uris)
+}
 ```
+{: file='IconService.kt'}
+
 
 
 ```kotlin
