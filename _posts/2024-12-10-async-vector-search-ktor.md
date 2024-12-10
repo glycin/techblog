@@ -240,11 +240,21 @@ val result = client.graphQL()
 
 This might look alien, but once "decoded" it makes sense. Since Weaviate uses `GraphQL` for their search API, we use a builder to create a `GraphQL` request. We want to do a `get()` request on the vector schema with the class name `Icon`. There, we want to search for any vectors that are close to the concept of `text`, where `text` is the `string` that we supply. We limit our results to vectors that are within a distance of `0.9`. Identical vectors will have a distance of `0`, and opposite vectors will have a distance of `2`. We tell Weaviate to limit the results to 10 and to only return the image field of the found objects. See, makes perfect sense!
 
-And with this we are ready to search! Players can type anything they want, and we most likely will have an icon to show them! It looks something like this:
+And with this, we are ready to search! Players can type anything they want, and we’ll most likely have an icon to show them! It looks something like this:
 
 {%
   include embed/video.html
   src='/assets/vid/simple_search.mp4'
+  title='Search video'
+  autoplay=true
+  loop=true
+%}
+
+Pretty neat, right?! Without doing any labeling or pre-processing (except for loading the images into a vector database), we are able to show icons for any item the player might search for! The latency is also acceptable, but the user experience is horrible! They need to search for items one by one. What if we supported multiple input strings? To make it easy for the player (and most importantly, us) we will support a comma delimited input. So something like this: `potion, sword, table, chair, lamp`. Then we can just split the string and search for each item individually. **Ktor** is async by default so performance shouldn't be impacted. It looks like this:
+
+{%
+  include embed/video.html
+  src='/assets/vid/multi_search.mp4'
   title='Search video'
   autoplay=true
   loop=true
