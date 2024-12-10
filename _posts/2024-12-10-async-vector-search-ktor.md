@@ -148,8 +148,10 @@ fun Application.module() {
 
 The Weaviate repository we create here is using the [**Weaviate** Java client](https://weaviate.io/developers/weaviate/client-libraries/java). This allows us to relatively easily interface with the vector database running on our local Docker environment. If we didn’t want to use the Weaviate Java client, we would either need to make REST calls ourselves or use an abstraction framework like Langchain4j.
 
-![Icons](/assets/gif/icons.gif){: .left}
-But what are we using to ingest? Well, thanks to some [humble bundles](https://www.humblebundle.com/), there is a healthy amount of icons that we can use—1029 icons to be precise, stored in a local directory. These specific icons are unfortunately subject to copyright laws and can’t be shared online, but any [icon collection](https://opengameart.org/content/496-pixel-art-icons-for-medievalfantasy-rpg) can do the trick! Now, all we need to do is create an endpoint that gets a directory path (or URL) and loads all these icons into our vector database:
+### Loading icons in the vector database
+![Icons](/assets/gif/icons.gif)
+
+But which icons are we going to ingest in our database? Well, thanks to some [humble bundles](https://www.humblebundle.com/), there is a healthy amount of icons that we can use—1029 icons to be precise, stored in a local directory. These specific icons are unfortunately subject to copyright laws and can’t be shared online, but any [icon collection](https://opengameart.org/content/496-pixel-art-icons-for-medievalfantasy-rpg) can do the trick! Now, all we need to do is create an endpoint that gets a directory path (or URL) and loads all these icons into our vector database:
 
 ```kotlin
 post("/ingest/directory") {
@@ -179,24 +181,73 @@ fun loadImagesInDb(imageDirectory: String): Boolean {
 ```
 {: file='IconService.kt'}
 
+```curl
+curl --request POST \
+  --url http://127.0.0.1:1337/icon/ingest/directory \
+  --header 'content-type: application/json' \
+  --data '{
+  "path": "C:\\Projects\\ktor-vector-search\\vectorData"
+}'
+```
+The above snippets should be quite straightforward (otherwise, I have failed you...). We `POST` a directory path, get the `URI` of each image in that directory, and batch add them to Weaviate. Once we run this, all images in the specified directory will be loaded into Weaviate! In this case, that will take roughly a minute and a half. Thankfully, we only need to do this once, thanks to the persistent volume we set up earlier. And that’s it! Now we can finally start searching for icons using text!
 
+### Searching for images using text
+After some setup, we’re all ready to build our search endpoints.
 
 ```kotlin
-routing {
-    route("/icon") {
-        get("/{searchText}") {
-            val searchText = call.parameters["searchText"]
-            if (searchText.isNullOrBlank()) {
-                call.respond(HttpStatusCode.BadRequest)
-                return@get
-            }
-
-            call.respond(iconService.searchImage(searchText))
+route("/icon") {
+    get("/{searchText}") {
+        val searchText = call.parameters["searchText"]
+        if (searchText.isNullOrBlank()) {
+            call.respond(HttpStatusCode.BadRequest)
+            return@get
         }
+
+        call.respond(iconService.searchImage(searchText))
     }
 }
 ```
+{: file='Routing.kt'}
 
-Again, pretty straightforward stuff. We map our `GET` endpoint to `/icon/{searchText}` and respond with a list of `Icon` objects that we find. 
+A simple `GET` will do the trick here. We can extract our search text from the path and send it to our `IconService.kt`. The `IconService` will then forward the request to our `WeaviateRepository`. 
+
+```kotlin
+fun searchImage(text: String): List<Icon> {
+    return weaviateRepository.searchImageNearText(text, 10).map {
+        it.toIcon()
+    }
+}
+```
+{: file='IconService.kt'}
+
+In the `WeaviateRepository` is where most the magic happens. Here we tell Weaviate how to perform the vector search exactly.
+
+```kotlin
+val result = client.graphQL()
+            .get()
+            .withClassName(WeaviateClassNames.ICON_CLASS)
+            .withNearText(
+                NearTextArgument.builder()
+                    .concepts(arrayOf(text))
+                    .distance(0.9f)
+                    .build()
+            )
+            .withLimit(limit)
+            .withFields(Field.builder().name("image").build())
+            .run()
+```
+{: file='WeaviateRepository.kt'}
+
+This might look alien, but once "decoded" it makes sense. Since Weaviate uses `GraphQL` for their search API, we use a builder to create a `GraphQL` request. We want to do a `get()` request on the vector schema with the class name `Icon`. There, we want to search for any vectors that are close to the concept of `text`, where `text` is the `string` that we supply. We limit our results to vectors that are within a distance of `0.9`. Identical vectors will have a distance of `0`, and opposite vectors will have a distance of `2`. We tell Weaviate to limit the results to 10 and to only return the image field of the found objects. See, makes perfect sense!
+
+And with this we are ready to search! Players can type anything they want, and we most likely will have an icon to show them! It looks something like this:
+
+{%
+  include embed/video.html
+  src='/assets/vid/simple_search.mp4'
+  title='Search video'
+  autoplay=true
+  loop=true
+%}
 
 ## Additional viewing material
