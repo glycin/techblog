@@ -62,7 +62,7 @@ Quite neat right?! We can just run `docker compose up` and we will have an insta
     - C:\Projects\ktor-vector-search\weaviate_volume:/var/lib/weaviate
 ```
 
-Here we define a persistent volume for our vector database. That means there wont be any data loss if we happen to delete the image, which has never happened before...
+Here we define a persistent volume for our vector database. That means there wont be any data loss if we happen to delete the docker image, as some of us might have experienced before...
 
 ```yaml
   multi2vec-clip:
@@ -121,9 +121,76 @@ Here we create a schema with `className` `Icon` (class names always have to star
 And that's it! We are ready to ingest and query data from our Weaviate instance. Now let's make some endpoints to do just that!
 
 ## Ktor
-Since we are developing a game here (and not just any game, a MMORPG), we need our search to be *fast* as lightning and as *async* as we can get it! Players might be searching for alot of items at any given time, so *async* will help us get those icons to the client as quickly as possible! That means [Ktor](https://ktor.io/) is probably our best choice. Ktor is heavily leveraging *kotlin coroutines* to be async by default. That's great! Exactly what we need! And the compact way of declaring our routing is just a nice plus.
+Since we are developing a game here (and not just any game, a MMORPG), we need our search to be *fast* as lightning and as *async* as we can get it! Players might be searching for alot of items at any given time, so *async* will help us get those icons to the client as quickly as possible! That means [Ktor](https://ktor.io/) is probably our best choice. Ktor is heavily leveraging *kotlin coroutines* so that calls to are async by default. That's great! Exactly what we need! And the compact way of declaring our routing is just a nice plus.
+
+### Setting up the service
+Setting up our service is quite straightforward. Our configuration isn't that exciting. We set up our `ContentNegotiation` for json, set up some log levels and create our services and inject them in our route. We do this manually, since using a DI framework just for a few classes is really kinda overkill. Don't forget people, less is more. 
+
+```kotlin
+fun Application.module() {
+
+    install(ContentNegotiation) {
+        json(Json {
+            prettyPrint = true
+            isLenient = false
+            ignoreUnknownKeys = true
+        })
+    }
+
+    install(CallLogging) {
+        level = Level.WARN
+    }
+
+    val repository = WeaviateRepository()
+    val iconService = IconService(repository)
+
+    configureRouting(iconService)
+}
+```
+{: file='Application.kt'}
+
+The Weaviate repository we create here is using the [**Weaviate** java client](https://weaviate.io/developers/weaviate/client-libraries/java). This allows us to relatively easily interface with the vector database running on our local docker environment. If we didn't want to use the Weaviate java client we either need to do REST calls ourselves or use an abstraction framework like **Langchain4j**. 
+
+![Icons](/assets/gif/icons.gif){.w-50.left} But what are we doing to ingest? Well thanks to some [humble bundles](https://www.humblebundle.com/), there is a healthy amount of icons that we can use. 1029 to be precise. Now all we need to do is create an endpoint that gets a directory path (or url) and loads all these icons in our vector database:
 
 
+```kotlin
+post("/ingest/directory") {
+    try {
+        val path = call.receive<IconDirectoryPath>()
+        call.respond(iconService.loadImagesInDb(path.path))
+    } catch (e: JsonConvertException) {
+        LOG.info { "Couldn't parse IconDirectoryPath: ${e.message}" }
+        call.respond(HttpStatusCode.BadRequest)
+    }
+}
+```
+{: file='Routing.kt'}
 
+
+With our application setup, we can now focus on searching for icons! First things first, we need to ingest some data in the vector database. We will do that using the 
+
+```kotlin
+
+```
+
+
+```kotlin
+routing {
+    route("/icon") {
+        get("/{searchText}") {
+            val searchText = call.parameters["searchText"]
+            if (searchText.isNullOrBlank()) {
+                call.respond(HttpStatusCode.BadRequest)
+                return@get
+            }
+
+            call.respond(iconService.searchImage(searchText))
+        }
+    }
+}
+```
+
+Again, pretty straightforward stuff. We map our `GET` endpoint to `/icon/{searchText}` and respond with a list of `Icon` objects that we find. 
 
 ## Additional viewing material
