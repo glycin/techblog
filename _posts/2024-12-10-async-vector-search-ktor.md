@@ -5,7 +5,7 @@ date: 2024-12-10
 categories: [technical, coding, ktor]
 ---
 
-![Banner]({{ "/assets/media/banner.gif" | relative_url }})
+![Banner]("/assets/gif/banner.gif")
 
 ## Imagine...
 
