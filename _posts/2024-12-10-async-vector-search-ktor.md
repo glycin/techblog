@@ -338,7 +338,10 @@ YYYY-MM-DD HH:MM:32.726  200 OK: POST - /icon/with_list in 895ms
 YYYY-MM-DD HH:MM:37.589  200 OK: POST - /icon/with_list in 897ms
 YYYY-MM-DD HH:MM:41.630  200 OK: POST - /icon/with_list in 890ms
 ```
+Hmm, the same call done 7 times always hovers around 900ms. So, getting all 200 icons we request asynchronously gives us an initial delay of 900ms, and then we have all the icons we asked for. It's not bad, but it's not great either. It’s definitely better than the 1.5 seconds or so that this would have taken if done synchronously, though! Using coroutines does add some overhead from potential coroutine switching, as well as from spinning up and managing the coroutines.
 
-Hmm, 
+So, what can we do to improve this? Maybe there’s a way to stream results as we get them? Yes, that was a rhetorical question. There is a way, [Asynchronous Flow](https://kotlinlang.org/docs/flow.html).
+
+### Streaming Vector Search
 
 ## Additional viewing material
