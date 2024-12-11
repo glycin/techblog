@@ -263,33 +263,36 @@ Pretty neat, right?! Without doing any labeling or pre-processing (except for lo
 Now as you can see this work quite well! Response times are under 100ms per request. Lets take a look using a comma-delimited list of 20 items one might find in an MMORPG.
 
 ```
-Health Potion, Mana Potion, Elven Longbow, Dragonbone Sword, Mithril Armor, Magic Ring, Firestone, Healing Herb, Crystal Shard, Phoenix Feather, Iron Gauntlets, Teleportation Scroll, Enchanted Amulet, Steel Shield, Potion of Invisibility, Talisman of Luck, Rune Stone, Iron Sword, Cloak of Shadows, Greater Health Elixir, Ice Staff
+Health Potion, Mana Potion, Elven Longbow, Dragonbone Sword, Mithril Armor, Magic Ring, 
+Firestone, Healing Herb, Crystal Shard, Phoenix Feather, Iron Gauntlets, Teleportation Scroll, 
+Enchanted Amulet, Steel Shield, Potion of Invisibility, Talisman of Luck, 
+Rune Stone, Iron Sword, Cloak of Shadows, Greater Health Elixir, Ice Staff
 ```
 
 If we do a call using this list as input, our server logging looks a little bit like this:
 
 ```
-YYYY-MM-DD HH:MM:46.011 [eventLoopGroupProxy-4-14] WARN  io.ktor.server.Application - 200 OK: GET - /icon/Health%20Potion in 72ms
-YYYY-MM-DD HH:MM:46.051 [eventLoopGroupProxy-4-15] WARN  io.ktor.server.Application - 200 OK: GET - /icon/Crystal%20Shard in 112ms
-YYYY-MM-DD HH:MM:46.112 [eventLoopGroupProxy-4-14] WARN  io.ktor.server.Application - 200 OK: GET - /icon/Healing%20Herb in 79ms
-YYYY-MM-DD HH:MM:46.140 [eventLoopGroupProxy-4-15] WARN  io.ktor.server.Application - 200 OK: GET - /icon/Talisman%20of%20Luck in 81ms
-YYYY-MM-DD HH:MM:46.196 [eventLoopGroupProxy-4-14] WARN  io.ktor.server.Application - 200 OK: GET - /icon/Phoenix%20Feather in 67ms
-YYYY-MM-DD HH:MM:46.226 [eventLoopGroupProxy-4-15] WARN  io.ktor.server.Application - 200 OK: GET - /icon/Mana%20Potion in 80ms
-YYYY-MM-DD HH:MM:46.277 [eventLoopGroupProxy-4-14] WARN  io.ktor.server.Application - 200 OK: GET - /icon/Iron%20Sword in 72ms
-YYYY-MM-DD HH:MM:46.307 [eventLoopGroupProxy-4-15] WARN  io.ktor.server.Application - 200 OK: GET - /icon/Iron%20Gauntlets in 72ms
-YYYY-MM-DD HH:MM:46.350 [eventLoopGroupProxy-4-14] WARN  io.ktor.server.Application - 200 OK: GET - /icon/Teleportation%20Scroll in 65ms
-YYYY-MM-DD HH:MM:46.384 [eventLoopGroupProxy-4-15] WARN  io.ktor.server.Application - 200 OK: GET - /icon/Enchanted%20Amulet in 69ms
-YYYY-MM-DD HH:MM:46.421 [eventLoopGroupProxy-4-14] WARN  io.ktor.server.Application - 200 OK: GET - /icon/Rune%20Stone in 65ms
-YYYY-MM-DD HH:MM:46.458 [eventLoopGroupProxy-4-15] WARN  io.ktor.server.Application - 200 OK: GET - /icon/Cloak%20of%20Shadows in 67ms
-YYYY-MM-DD HH:MM:46.494 [eventLoopGroupProxy-4-14] WARN  io.ktor.server.Application - 200 OK: GET - /icon/Potion%20of%20Invisibility in 65ms
-YYYY-MM-DD HH:MM:46.547 [eventLoopGroupProxy-4-15] WARN  io.ktor.server.Application - 200 OK: GET - /icon/Magic%20Ring in 71ms
-YYYY-MM-DD HH:MM:46.585 [eventLoopGroupProxy-4-14] WARN  io.ktor.server.Application - 200 OK: GET - /icon/Mithril%20Armor in 83ms
-YYYY-MM-DD HH:MM:46.623 [eventLoopGroupProxy-4-15] WARN  io.ktor.server.Application - 200 OK: GET - /icon/Elven%20Longbow in 71ms
-YYYY-MM-DD HH:MM:46.660 [eventLoopGroupProxy-4-14] WARN  io.ktor.server.Application - 200 OK: GET - /icon/Greater%20Health%20Elixir in 65ms
-YYYY-MM-DD HH:MM:46.695 [eventLoopGroupProxy-4-15] WARN  io.ktor.server.Application - 200 OK: GET - /icon/Dragonbone%20Sword in 64ms
-YYYY-MM-DD HH:MM:46.739 [eventLoopGroupProxy-4-14] WARN  io.ktor.server.Application - 200 OK: GET - /icon/and%20Ice%20Staff in 75ms
-YYYY-MM-DD HH:MM:46.767 [eventLoopGroupProxy-4-15] WARN  io.ktor.server.Application - 200 OK: GET - /icon/Firestone in 67ms
-YYYY-MM-DD HH:MM:46.818 [eventLoopGroupProxy-4-14] WARN  io.ktor.server.Application - 200 OK: GET - /icon/Steel%20Shield in 70ms
+YYYY-MM-DD HH:MM:46.011 200 OK: GET - /icon/Health%20Potion in 72ms
+YYYY-MM-DD HH:MM:46.051 200 OK: GET - /icon/Crystal%20Shard in 112ms
+YYYY-MM-DD HH:MM:46.112 200 OK: GET - /icon/Healing%20Herb in 79ms
+YYYY-MM-DD HH:MM:46.140 200 OK: GET - /icon/Talisman%20of%20Luck in 81ms
+YYYY-MM-DD HH:MM:46.196 200 OK: GET - /icon/Phoenix%20Feather in 67ms
+YYYY-MM-DD HH:MM:46.226 200 OK: GET - /icon/Mana%20Potion in 80ms
+YYYY-MM-DD HH:MM:46.277 200 OK: GET - /icon/Iron%20Sword in 72ms
+YYYY-MM-DD HH:MM:46.307 200 OK: GET - /icon/Iron%20Gauntlets in 72ms
+YYYY-MM-DD HH:MM:46.350 200 OK: GET - /icon/Teleportation%20Scroll in 65ms
+YYYY-MM-DD HH:MM:46.384 200 OK: GET - /icon/Enchanted%20Amulet in 69ms
+YYYY-MM-DD HH:MM:46.421 200 OK: GET - /icon/Rune%20Stone in 65ms
+YYYY-MM-DD HH:MM:46.458 200 OK: GET - /icon/Cloak%20of%20Shadows in 67ms
+YYYY-MM-DD HH:MM:46.494 200 OK: GET - /icon/Potion%20of%20Invisibility in 65ms
+YYYY-MM-DD HH:MM:46.547 200 OK: GET - /icon/Magic%20Ring in 71ms
+YYYY-MM-DD HH:MM:46.585 200 OK: GET - /icon/Mithril%20Armor in 83ms
+YYYY-MM-DD HH:MM:46.623 200 OK: GET - /icon/Elven%20Longbow in 71ms
+YYYY-MM-DD HH:MM:46.660 200 OK: GET - /icon/Greater%20Health%20Elixir in 65ms
+YYYY-MM-DD HH:MM:46.695 200 OK: GET - /icon/Dragonbone%20Sword in 64ms
+YYYY-MM-DD HH:MM:46.739 200 OK: GET - /icon/and%20Ice%20Staff in 75ms
+YYYY-MM-DD HH:MM:46.767 200 OK: GET - /icon/Firestone in 67ms
+YYYY-MM-DD HH:MM:46.818 200 OK: GET - /icon/Steel%20Shield in 70ms
 ```
 
 All our responses are within 100ms. Amazing! Unfortunately, there is an issue. Even though the server can handle our requests now, an implementation like this will eventually bring our server down (or force autoscaling to a point where we go bankrupt, I'm looking at you, AWS), once we inevitably have thousands of players doing thousands of searches!
@@ -324,12 +327,18 @@ And when we search using the 20 items mentioned earlier, the result looks like t
   loop=true
 %}
 
-Lets take a look at the response speed of the server. Of course isolated response speeds like this don't say much, but we can get a rough estimate if things are getting slower or faster. 
+Lets take a look at the response speed of the server. Of course isolated response speeds like this don't say much, but we can get a rough estimate if things are getting slower or faster after repeating the same call multiple times. 
 
 ```
-YYYY-MM-DD HH:MM:18.297 [eventLoopGroupProxy-4-3] WARN  io.ktor.server.Application - 200 OK: POST - /icon/with_list in 924ms
+YYYY-MM-DD HH:MM:12.102  200 OK: POST - /icon/with_list in 903ms
+YYYY-MM-DD HH:MM:19.569  200 OK: POST - /icon/with_list in 904ms
+YYYY-MM-DD HH:MM:20.822  200 OK: POST - /icon/with_list in 890ms
+YYYY-MM-DD HH:MM:27.890  200 OK: POST - /icon/with_list in 894ms
+YYYY-MM-DD HH:MM:32.726  200 OK: POST - /icon/with_list in 895ms
+YYYY-MM-DD HH:MM:37.589  200 OK: POST - /icon/with_list in 897ms
+YYYY-MM-DD HH:MM:41.630  200 OK: POST - /icon/with_list in 890ms
 ```
 
-We did one call to retrieve 200 icons a
+Hmm, 
 
 ## Additional viewing material
