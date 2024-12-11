@@ -250,14 +250,86 @@ And with this, we are ready to search! Players can type anything they want, and 
   loop=true
 %}
 
-Pretty neat, right?! Without doing any labeling or pre-processing (except for loading the images into a vector database), we are able to show icons for any item the player might search for! The latency is also acceptable, but the user experience is horrible! They need to search for items one by one. What if we supported multiple input strings? To make it easy for the player (and most importantly, us) we will support a comma delimited input. So something like this: `potion, sword, table, chair, lamp`. Then we can just split the string and search for each item individually. **Ktor** is async by default so performance shouldn't be impacted. It looks like this:
+Pretty neat, right?! Without doing any labeling or pre-processing (except for loading the images into a vector database), we are able to show icons for any item the player might search for! The latency is also acceptable, but the user experience is horrible! They need to search for items one by one. What if we supported multiple input strings? To make it easy for the player (and most importantly, us) we will support a comma delimited input. So something like this: `potion, sword, table, chair, lamp`. Then we can just split the string and search for each item individually. We can even do this client side and fire up a request per item in the `search` list. **Ktor** is async by default so performance shouldn't be impacted at all in this use case. It looks like this:
 
 {%
   include embed/video.html
   src='/assets/vid/multi_search.mp4'
-  title='Search video'
+  title='Multi input search video'
   autoplay=true
   loop=true
 %}
+
+Now as you can see this work quite well! Response times are under 100ms per request. Lets take a look using a comma-delimited list of 20 items one might find in an MMORPG.
+
+```
+Health Potion, Mana Potion, Elven Longbow, Dragonbone Sword, Mithril Armor, Magic Ring, Firestone, Healing Herb, Crystal Shard, Phoenix Feather, Iron Gauntlets, Teleportation Scroll, Enchanted Amulet, Steel Shield, Potion of Invisibility, Talisman of Luck, Rune Stone, Iron Sword, Cloak of Shadows, Greater Health Elixir, Ice Staff
+```
+
+If we do a call using this list as input, our server logging looks a little bit like this:
+
+```
+YYYY-MM-DD HH:MM:46.011 [eventLoopGroupProxy-4-14] WARN  io.ktor.server.Application - 200 OK: GET - /icon/Health%20Potion in 72ms
+YYYY-MM-DD HH:MM:46.051 [eventLoopGroupProxy-4-15] WARN  io.ktor.server.Application - 200 OK: GET - /icon/Crystal%20Shard in 112ms
+YYYY-MM-DD HH:MM:46.112 [eventLoopGroupProxy-4-14] WARN  io.ktor.server.Application - 200 OK: GET - /icon/Healing%20Herb in 79ms
+YYYY-MM-DD HH:MM:46.140 [eventLoopGroupProxy-4-15] WARN  io.ktor.server.Application - 200 OK: GET - /icon/Talisman%20of%20Luck in 81ms
+YYYY-MM-DD HH:MM:46.196 [eventLoopGroupProxy-4-14] WARN  io.ktor.server.Application - 200 OK: GET - /icon/Phoenix%20Feather in 67ms
+YYYY-MM-DD HH:MM:46.226 [eventLoopGroupProxy-4-15] WARN  io.ktor.server.Application - 200 OK: GET - /icon/Mana%20Potion in 80ms
+YYYY-MM-DD HH:MM:46.277 [eventLoopGroupProxy-4-14] WARN  io.ktor.server.Application - 200 OK: GET - /icon/Iron%20Sword in 72ms
+YYYY-MM-DD HH:MM:46.307 [eventLoopGroupProxy-4-15] WARN  io.ktor.server.Application - 200 OK: GET - /icon/Iron%20Gauntlets in 72ms
+YYYY-MM-DD HH:MM:46.350 [eventLoopGroupProxy-4-14] WARN  io.ktor.server.Application - 200 OK: GET - /icon/Teleportation%20Scroll in 65ms
+YYYY-MM-DD HH:MM:46.384 [eventLoopGroupProxy-4-15] WARN  io.ktor.server.Application - 200 OK: GET - /icon/Enchanted%20Amulet in 69ms
+YYYY-MM-DD HH:MM:46.421 [eventLoopGroupProxy-4-14] WARN  io.ktor.server.Application - 200 OK: GET - /icon/Rune%20Stone in 65ms
+YYYY-MM-DD HH:MM:46.458 [eventLoopGroupProxy-4-15] WARN  io.ktor.server.Application - 200 OK: GET - /icon/Cloak%20of%20Shadows in 67ms
+YYYY-MM-DD HH:MM:46.494 [eventLoopGroupProxy-4-14] WARN  io.ktor.server.Application - 200 OK: GET - /icon/Potion%20of%20Invisibility in 65ms
+YYYY-MM-DD HH:MM:46.547 [eventLoopGroupProxy-4-15] WARN  io.ktor.server.Application - 200 OK: GET - /icon/Magic%20Ring in 71ms
+YYYY-MM-DD HH:MM:46.585 [eventLoopGroupProxy-4-14] WARN  io.ktor.server.Application - 200 OK: GET - /icon/Mithril%20Armor in 83ms
+YYYY-MM-DD HH:MM:46.623 [eventLoopGroupProxy-4-15] WARN  io.ktor.server.Application - 200 OK: GET - /icon/Elven%20Longbow in 71ms
+YYYY-MM-DD HH:MM:46.660 [eventLoopGroupProxy-4-14] WARN  io.ktor.server.Application - 200 OK: GET - /icon/Greater%20Health%20Elixir in 65ms
+YYYY-MM-DD HH:MM:46.695 [eventLoopGroupProxy-4-15] WARN  io.ktor.server.Application - 200 OK: GET - /icon/Dragonbone%20Sword in 64ms
+YYYY-MM-DD HH:MM:46.739 [eventLoopGroupProxy-4-14] WARN  io.ktor.server.Application - 200 OK: GET - /icon/and%20Ice%20Staff in 75ms
+YYYY-MM-DD HH:MM:46.767 [eventLoopGroupProxy-4-15] WARN  io.ktor.server.Application - 200 OK: GET - /icon/Firestone in 67ms
+YYYY-MM-DD HH:MM:46.818 [eventLoopGroupProxy-4-14] WARN  io.ktor.server.Application - 200 OK: GET - /icon/Steel%20Shield in 70ms
+```
+
+All our responses are within 100ms. Amazing! Unfortunately, there is an issue. Even though the server can handle our requests now, an implementation like this will eventually bring our server down (or force autoscaling to a point where we go bankrupt, I'm looking at you, AWS), once we inevitably have thousands of players doing thousands of searches!
+
+This means we need to build an endpoint that receives a list of `searchTexts` and collects the results. Now, we’re smart enough to know that if we do this synchronously, it would take roughly 1.5 seconds to complete. Thankfully, we can use Kotlin Coroutines to speed things up a little bit. We just need to build a function that takes a list of `searchTexts` and maps them asynchronously to the results we find using Weaviate. Thankfully, using Kotlin extension functions, we can do that quite elegantly (shoutout to a good colleague of mine for this function).
+
+```kotlin
+suspend inline fun <T, R> Iterable<T>.asyncFlatMap(context: CoroutineContext = EmptyCoroutineContext, crossinline transform: suspend (T) -> List<R>): List<R> =
+    withContext(context) {
+        map { async { transform(it) } }.awaitAll().flatten()
+    }
+```
+It might be a little bit intimidating at first, but this extension function basically creates a map of `Deferred<R>`, awaits them all, and returns the results of the transformations. We make sure it is an [inline function](https://kotlinlang.org/docs/inline-functions.html) as an optimization. Passing the `EmptyCoroutineContext` will also ensure that this function inherits the context of the calling function. With this extension function at our disposal, we can collect our results like this:
+
+```kotlin
+suspend fun searchImagesAsync(texts: List<String>): List<Icon> = withContext (Dispatchers.IO + SupervisorJob()) {
+    texts.asyncFlatMap { text ->
+        weaviateRepository.searchImageNearText(text, 10).map {
+            it.toIcon()
+        }
+    }
+}
+```
+
+And when we search using the 20 items mentioned earlier, the result looks like this:
+
+{%
+  include embed/video.html
+  src='/assets/vid/async_search.mp4'
+  title='Async search video'
+  autoplay=true
+  loop=true
+%}
+
+Lets take a look at the response speed of the server. Of course isolated response speeds like this don't say much, but we can get a rough estimate if things are getting slower or faster. 
+
+```
+YYYY-MM-DD HH:MM:18.297 [eventLoopGroupProxy-4-3] WARN  io.ktor.server.Application - 200 OK: POST - /icon/with_list in 924ms
+```
+
+We did one call to retrieve 200 icons a
 
 ## Additional viewing material
