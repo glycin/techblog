@@ -307,10 +307,10 @@ suspend inline fun <T, R> Iterable<T>.asyncFlatMap(context: CoroutineContext = E
 ```
 {: file='AsyncMap.kt'}
 
-It might be a little bit intimidating at first, but this extension function basically creates a map of `Deferred<R>`, awaits them all, and returns the results of the transformations. We make sure it is an [inline function](https://kotlinlang.org/docs/inline-functions.html) as an optimization. Passing the `EmptyCoroutineContext` will also ensure that this function inherits the context of the calling function. With this extension function at our disposal, we can collect our results like this:
+It might be a little bit intimidating at first, but this extension function basically creates a map of `Deferred<R>`, awaits them all, and returns the results of the transformations. We make sure it is an [inline function](https://kotlinlang.org/docs/inline-functions.html) as an optimization. Giving the option to pass a `CoroutineContext` will also give us the flexibility to switch to another coroutine context within this function if necessary. With this extension function at our disposal, we can collect our results like this:
 
 ```kotlin
-suspend fun searchImagesAsync(texts: List<String>): List<Icon> = withContext (Dispatchers.IO + SupervisorJob()) {
+suspend fun searchImagesAsync(texts: List<String>): List<Icon> = withContext (Dispatchers.IO) {
     texts.asyncFlatMap { text ->
         weaviateRepository.searchImageNearText(text, 10).map {
             it.toIcon()
@@ -347,7 +347,7 @@ So, what can we do to improve this? Maybe there’s a way to stream results as w
 
 ### Streaming Vector Search
 
-Async Kotlin Flows allow us to `emit` objects we compute in coroutines as they are ready. We can send these to a client one by one, eliminating any initial delay for responses. Typically, you would need to implement server-side events (SSE) or something similar to make that happen. Thankfully, that is not needed thanks to **Ktor** and [`respondTextWriter`](https://api.ktor.io/ktor-server/ktor-server-core/io.ktor.server.response/respond-text-writer.html). No need to add and learn reactive frameworks like `Reactor` (or similar). Also, no need to change our response type. We can just keep using good ol' `application/json`. So how do we implement this?
+Async Kotlin Flows allow us to `emit` objects we compute in coroutines as they are ready. We can send these objects to a client one by one, eliminating any initial delay from the responses. Basically, it's a form of server side events (SSE), but preserving the ability to use good ol' `application/json` as our content type. Fortunately, thanks to **Ktor** and [`respondTextWriter`](https://api.ktor.io/ktor-server/ktor-server-core/io.ktor.server.response/respond-text-writer.html) we do not need to add and learn reactive frameworks like `Reactor` (or similar) and can use Flows natively. So how do we implement this?
 
 ```kotlin
 call.respondTextWriter(ContentType.Application.Json) {
@@ -364,9 +364,11 @@ call.respondTextWriter(ContentType.Application.Json) {
 
 ```kotlin
 fun searchImagesFlow(texts: List<String>): Flow<Icon> = channelFlow {
-    texts.asyncFlatMap { text ->
-        weaviateRepository.searchImageNearText(text, 10).map {
-            send(it.toIcon())
+    texts.forEach { text ->
+        launch {
+            weaviateRepository.searchImageNearText(text, 10).map {
+                send(it.toIcon())
+            }
         }
     }
 }.flowOn(Dispatchers.IO)
@@ -375,7 +377,7 @@ fun searchImagesFlow(texts: List<String>): Flow<Icon> = channelFlow {
 
 Less code than one would expect, right!? In our `Routing.kt`, we create an endpoint that responds using `respondTextWriter`, which collects the data in our `Flow` and writes it as it is received. We add a line break so that the client knows when a new object is sent and `flush()`, ensuring the items are sent immediately after they are written.
 
-The function that creates our `Flow` is actually pretty similar to our `asyncMap` implementation. The only thing we do differently is that we use a `channelFlow` builder instead of a `withContext` coroutine builder. We then `send()` our icons as they are received and mapped. Now, one with a keen eye might have noticed that we use the `channelFlow{}` builder instead of a `flow{}` builder. Why is that? Well, because the objects we want to `emit` (or `send`) are instantiated in a different coroutine than where the `Flow` is operating. Flows are not concurrent, but we can use the `channelFlow{}` builder to create a [`Channel`](https://kotlinlang.org/docs/channels.html) instead, which solves that issue for us. And thankfully, we just need to change `flow{}` to `channelFlow{}` and `emit()` to `send()` to make that work! Quite painless. So let's take a look at the result.
+The function that creates our `Flow` is actually pretty similar to our `asyncFlatMap()` implementation. We loop through all the texts we receive, launch a new coroutine for each of them and `send` the icons as they are retrieved from our vector database. Furthermore we use a `channelFlow` builder instead of a `withContext` coroutine builder. Now, one with a keen eye might have noticed that we use the `channelFlow{}` builder instead of a `flow{}` builder. Why is that? Well, because the objects we want to `emit` (or `send`) are instantiated in a different coroutine than where the `Flow` is operating. Flows are not concurrent, but we can use the `channelFlow{}` builder to create a [`Channel`](https://kotlinlang.org/docs/channels.html) instead, which solves that issue for us. And thankfully, we just need to change `flow{}` to `channelFlow{}` and `emit()` to `send()` to make that work! Quite painless. So let's take a look at the result.
 
 ![Flow Stream](/assets/gif/stream.gif)
 
