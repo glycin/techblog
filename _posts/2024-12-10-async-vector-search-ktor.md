@@ -395,9 +395,9 @@ And like this, we are ready to serve the thousands upon thousands of players tha
 
 ## Concluding...
 
-So there we have it! We've seen how vector search and embedding models can spare us from tedious manual tagging and labeling work, and how **Ktor** and asynchronous Kotlin help us keep our services fast and responsive. Now unfortunately this isn't beeing used in a real MMORPG for that fast and smooth, immersive experience, but that shouldn't stop you.
+So there we have it! We've seen how vector search and embedding models can spare us from tedious manual tagging and labeling work, and how **Ktor** and asynchronous Kotlin help us keep our services fast and responsive. Now unfortunately this isn't beeing used in a real MMORPG for that fast and smooth, immersive experience, but if you want to start building just that, you can find the code for the backend [here](https://github.com/glycin/ktor-vector-search).
 
-So go on, let your imagination run wild, and craft the next big thing! With these tools and a bit of creativity, there's no limit to what we can achieve as software engineers.
+So go on, let your imagination run wild, and craft the next big thing! With these tools and a bit of creativity, there's no limit to what we can achieve as software engineers. 
 
 Good luck, and have fun!
 
