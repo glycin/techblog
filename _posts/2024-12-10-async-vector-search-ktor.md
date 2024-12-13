@@ -118,7 +118,7 @@ Here we create a schema with the `className` "Icon" (class names always have to 
 And that's it! We are ready to ingest and query data from our Weaviate instance. Now let's make some endpoints to do just that!
 
 ## Ktor
-Since we are developing a game here (and not just any game, an MMORPG), we need our search to be *fast* as lightning and as *async* as we can get it! Players might be searching for a lot of items at any given time, so async will help us get those icons to the player as quickly as possible! That means [Ktor](https://ktor.io/) is probably our best choice. Ktor heavily leverages *Kotlin coroutines*, so calls are async by default. That’s great! Exactly what we need! And the compact way of declaring our routing is just a nice plus.
+Since we are developing a game here (and not just any game, an MMORPG), we need our search to be *fast* as lightning and as *async* as we can get it! Players might be searching for a lot of items at any given time, so async will help us get those icons to the player as quickly as possible! That means [Ktor](https://ktor.io/) is probably our best choice. Ktor is an open source web application framework created by Jetbrains. It heavily leverages *Kotlin coroutines*, so calls are async by default. That’s great! Exactly what we need! And the compact way of declaring our routing is just a nice plus. All of the Ktor code shown can be found [here](https://github.com/glycin/ktor-vector-search) as well!
 
 ### Setting up the service
 Setting up our service is quite straightforward. Our configuration isn’t that exciting. We set up our `ContentNegotiation` for JSON, configure some log levels, and create our services to inject them into our routes. We do this manually since using a DI framework just for a few classes is really kinda overkill. Don’t forget, people: less is more.
@@ -186,7 +186,7 @@ curl --request POST \
   --url http://127.0.0.1:1337/icon/ingest/directory \
   --header 'content-type: application/json' \
   --data '{
-  "path": "C:\\Projects\\ktor-vector-search\\vectorData"
+  "path": "<PATH TO YOUR DIRECTORY HERE>"
 }'
 ```
 The above snippets should be quite straightforward (otherwise, I have failed you...). We `POST` a directory path, get the `URI` of each image in that directory, and batch add them to Weaviate. Once we run this, all images in the specified directory will be loaded into Weaviate! In this case, that will take roughly a minute and a half. Thankfully, we only need to do this once, thanks to the persistent volume we set up earlier. And that’s it! Now we can finally start searching for icons using text!
@@ -220,7 +220,7 @@ fun searchImage(text: String): List<Icon> {
 ```
 {: file='IconService.kt'}
 
-In the `WeaviateRepository` is where most the magic happens. Here we tell Weaviate how to perform the vector search exactly.
+In the `WeaviateRepository` is where most the magic happens. Here we tell Weaviate how to perform the vector search. We build up queries that search for specific classes and fields. Let's take a look.
 
 ```kotlin
 val result = client.graphQL()
@@ -297,7 +297,7 @@ YYYY-MM-DD HH:MM:46.818 200 OK: GET - /icon/Steel%20Shield in 70ms
 
 All our responses are within 100ms. Amazing! Unfortunately, there is an issue. Even though the server can handle our requests now, an implementation like this will eventually bring our server down (or force autoscaling to a point where we go bankrupt, I'm looking at you, AWS), once we inevitably have thousands of players doing thousands of searches!
 
-This means we need to build an endpoint that receives a list of `searchTexts` and collects the results. Now, we’re smart enough to know that if we do this synchronously, it would take roughly 1.5 seconds to complete. Thankfully, we can use Kotlin Coroutines to speed things up a little bit. We just need to build a function that takes a list of `searchTexts` and maps them asynchronously to the results we find using Weaviate. Thankfully, using Kotlin extension functions, we can do that quite elegantly (shoutout to a good colleague of mine for this function).
+This means we need to build an endpoint that receives a list of `searchTexts` and collects the results. Now, we’re smart enough to know that if we do this synchronously, it would take roughly 1.5 seconds to complete. Thankfully, we can use Kotlin [Coroutines](https://kotlinlang.org/docs/coroutines-overview.html) to speed things up a little bit. We just need to build a function that takes a list of `searchTexts` and maps them asynchronously to the results we find using Weaviate. Thankfully, using Kotlin extension functions, we can do that quite elegantly (shoutout to a good colleague of mine for this function).
 
 ```kotlin
 suspend inline fun <T, R> Iterable<T>.asyncFlatMap(context: CoroutineContext = EmptyCoroutineContext, crossinline transform: suspend (T) -> List<R>): List<R> =
@@ -381,7 +381,7 @@ The function that creates our `Flow` is actually pretty similar to our `asyncFla
 
 ![Flow Stream](/assets/gif/stream.gif)
 
-Exactly what we wanted! The millisecond we do a call, icons are beeing streamed to the client. Amazing...
+Exactly what we wanted! The millisecond we do a call, icons are being streamed to the client. Amazing...
 
 On our game it looks like this.
 
@@ -397,7 +397,7 @@ And like this, we are ready to serve the thousands upon thousands of players tha
 
 ## Concluding...
 
-So there we have it! We've seen how vector search and embedding models can spare us from tedious manual tagging and labeling work, and how **Ktor** and asynchronous Kotlin help us keep our services fast and responsive. Now unfortunately this isn't beeing used in a real MMORPG for that fast and smooth, immersive experience, but if you want to start building just that, you can find the code for the backend [here](https://github.com/glycin/ktor-vector-search).
+So there we have it! We've seen how vector search and embedding models can spare us from tedious manual tagging and labeling work, and how **Ktor** and asynchronous Kotlin help us keep our services fast and responsive. Now unfortunately this isn't being used in a real MMORPG for that fast and smooth, immersive experience, but if you want to start building just that, you can find the code for the backend [here](https://github.com/glycin/ktor-vector-search).
 
 So go on, let your imagination run wild, and craft the next big thing! With these tools and a bit of creativity, there's no limit to what we can achieve as software engineers. 
 
